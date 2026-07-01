@@ -1,0 +1,31 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Firebase Auth 미사용으로 인증 기반 접근 제어 없음.
+    // 프로덕션 배포 전 보안 규칙 재설계 필요.
+    match /users/{docId} {
+      allow read, write: if true;
+
+      match /usageTime/{doc} {
+        allow read, write: if true;
+      }
+
+      // subscription은 클라이언트 write 불가 (Cloud Functions 전용)
+      match /subscription/{doc} {
+        allow read: if true;
+        allow write: if false;
+      }
+
+      match /payments/{paymentId} {
+        allow read: if true;
+        allow create: if request.resource.data.verificationStatus == 'pending';
+        allow update, delete: if false;
+      }
+
+      match /scoreViewers/{viewerId} {
+        allow read, write: if true;
+      }
+    }
+  }
+}

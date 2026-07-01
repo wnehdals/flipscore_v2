@@ -54,6 +54,7 @@ unlinked_spec.ds
 **/android/local.properties
 **/android/**/GeneratedPluginRegistrant.java
 **/android/key.properties
+**/android/app/google-services.json
 *.jks
 
 # iOS/XCode related
@@ -85,6 +86,7 @@ unlinked_spec.ds
 **/ios/Flutter/flutter_export_environment.sh
 **/ios/ServiceDefinitions.json
 **/ios/Runner/GeneratedPluginRegistrant.*
+**/ios/Runner/GoogleService-info.plist
 
 # macOS
 **/Flutter/ephemeral/
@@ -121,3 +123,6 @@ app.*.symbols
 firebase.json
 .idea
 .claude/
+
+# secrets (로컬 전용 — 절대 commit 금지)
+secrets.json
