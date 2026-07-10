@@ -6,7 +6,10 @@ abstract final class Responsive {
   static bool isTablet(BuildContext context) {
     return MediaQuery.of(context).size.width >= _tabletBreakpoint;
   }
-
-  static double getDp (BuildContext context, double value) => 
-    isTablet(context) ? value + 12.0 : value;
- }
+  static double horizontalPadding(BuildContext context) {
+     return isTablet(context) ? 48 : 24;
+  }
+  static double verticalPadding(BuildContext context) {
+     return isTablet(context) ? 48 : 24;
+  }
+}

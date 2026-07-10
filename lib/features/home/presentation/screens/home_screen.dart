@@ -5,11 +5,8 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../shared/models/score_viewer.dart';
-import '../../../../shared/models/subscription.dart';
 import '../../../../shared/widgets/app_nav_rail.dart' show AppBottomNav;
 import '../../../create/presentation/providers/create_flow_provider.dart';
-import '../../../usage_time/presentation/providers/subscription_provider.dart';
-import '../../../usage_time/presentation/providers/usage_time_provider.dart';
 import '../providers/home_providers.dart';
 import '../widgets/score_viewer_card.dart';
 
@@ -19,11 +16,6 @@ class HomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final listAsync = ref.watch(scoreViewerListProvider);
-    final subAsync = ref.watch(currentSubscriptionProvider);
-    final usageAsync = ref.watch(currentUsageTimeProvider);
-
-    final sub = subAsync.valueOrNull ?? Subscription.initial();
-    final remainingSeconds = usageAsync.valueOrNull?.remainingSeconds ?? 0;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -33,8 +25,6 @@ class HomeScreen extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _HomeHeader(
-              isSubscribed: sub.isActive,
-              remainingSeconds: remainingSeconds,
               onCreate: () => context.push('/create/scores'),
             ),
             Expanded(
@@ -45,11 +35,7 @@ class HomeScreen extends ConsumerWidget {
                 error: (e, _) => Center(
                   child: Text('불러오기 실패: $e', style: AppTextStyles.body),
                 ),
-                data: (list) => _ScoreViewerGrid(
-                  viewers: list,
-                  isSubscribed: sub.isActive,
-                  remainingSeconds: remainingSeconds,
-                ),
+                data: (list) => _ScoreViewerGrid(viewers: list),
               ),
             ),
           ],
@@ -61,25 +47,10 @@ class HomeScreen extends ConsumerWidget {
 
 class _HomeHeader extends StatelessWidget {
   const _HomeHeader({
-    required this.isSubscribed,
-    required this.remainingSeconds,
     required this.onCreate,
   });
 
-  final bool isSubscribed;
-  final int remainingSeconds;
   final VoidCallback onCreate;
-
-  String get _timeLabel {
-    if (isSubscribed) return '구독 중';
-    final h = remainingSeconds ~/ 3600;
-    final m = (remainingSeconds % 3600) ~/ 60;
-    final s = remainingSeconds % 60;
-    if (remainingSeconds == 0) return '0초';
-    if (h > 0) return '$h시간 $m분';
-    if (m > 0) return '$m분 $s초';
-    return '$s초';
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -98,49 +69,7 @@ class _HomeHeader extends StatelessWidget {
             ],
           ),
           const Spacer(),
-          // 잔여 이용시간 배지
-          GestureDetector(
-            onTap: () => context.push('/usage-time'),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: isSubscribed
-                    ? AppColors.textTertiary
-                    : remainingSeconds > 0
-                    ? AppColors.inputBorder
-                    : const Color(0xFFFFEEEE),
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    isSubscribed ? Icons.all_inclusive : Icons.timer_outlined,
-                    size: 14,
-                    color: isSubscribed
-                        ? AppColors.primary
-                        : remainingSeconds > 0
-                        ? AppColors.primary
-                        : const Color(0xFFE53935),
-                  ),
-                  const SizedBox(width: 5),
-                  Text(
-                    _timeLabel,
-                    style: AppTextStyles.caption.copyWith(
-                      color: isSubscribed
-                          ? AppColors.textPrimary
-                          : remainingSeconds > 0
-                          ? AppColors.textPrimary
-                          : const Color(0xFFE53935),
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
           /*
-          const SizedBox(width: 16),
           FilledButton.icon(
             onPressed: onCreate,
             icon: const Icon(Icons.add, size: 18),
@@ -165,54 +94,12 @@ class _HomeHeader extends StatelessWidget {
 }
 
 class _ScoreViewerGrid extends ConsumerWidget {
-  const _ScoreViewerGrid({
-    required this.viewers,
-    required this.isSubscribed,
-    required this.remainingSeconds,
-  });
+  const _ScoreViewerGrid({required this.viewers});
 
   final List<ScoreViewer> viewers;
-  final bool isSubscribed;
-  final int remainingSeconds;
 
   void _onCardTap(BuildContext context, ScoreViewer v) {
-    if (isSubscribed || remainingSeconds > 0) {
-      context.push('/viewer/${v.id}');
-      return;
-    }
-    showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text('이용시간이 없어요', style: AppTextStyles.subtitle),
-        content: Text(
-          '광고를 시청하거나 구독하면\n악보뷰어를 실행할 수 있습니다.',
-          style: AppTextStyles.body.copyWith(color: AppColors.textSecondary),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: Text(
-              '취소',
-              style: AppTextStyles.body.copyWith(color: AppColors.textTertiary),
-            ),
-          ),
-          FilledButton(
-            onPressed: () {
-              Navigator.of(ctx).pop();
-              context.push('/usage-time');
-            },
-            style: FilledButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-            child: const Text('이용시간 얻기', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-    );
+    context.push('/viewer/${v.id}');
   }
 
   void _onCardLongPress(BuildContext context, WidgetRef ref, ScoreViewer v) {

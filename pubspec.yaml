@@ -41,6 +41,11 @@ dependencies:
 
   # Firebase
   cloud_firestore: ^5.6.7
+  firebase_remote_config: ^5.4.2
+
+  # 강제 업데이트
+  package_info_plus: ^8.1.2
+  url_launcher: ^6.3.1
 
   # 소셜 로그인
   kakao_flutter_sdk: ^2.0.0+1
@@ -59,6 +64,9 @@ dependencies:
   uuid: ^4.5.1
   just_audio: ^0.10.4
   pdfx: ^2.9.2
+  google_mlkit_face_detection: ^0.13.2
+  camera: ^0.11.0+2
+  shared_preferences: ^2.3.5
 
 
 dev_dependencies:

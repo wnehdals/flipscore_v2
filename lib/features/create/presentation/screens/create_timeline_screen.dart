@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
-import '../../../../core/utils/responsive.dart';
 import '../../../../shared/models/enums.dart';
 import '../../../../shared/models/score_viewer_timeline.dart';
 import '../../../../shared/widgets/step_bar.dart';
@@ -79,7 +78,6 @@ class _CreateTimelineScreenState extends ConsumerState<CreateTimelineScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final dp = Responsive.getDp;
     final state = ref.watch(createFlowNotifierProvider);
 
     // ScoreType.pdf → PDF 파일 한 항목, image → 각 경로별 항목
@@ -103,13 +101,13 @@ class _CreateTimelineScreenState extends ConsumerState<CreateTimelineScreen> {
         title: Text('타임라인 설정', style: AppTextStyles.subtitle),
         actions: [
           Padding(
-            padding: EdgeInsets.only(right: dp(context, 12)),
+            padding: EdgeInsets.only(right: 12),
             child: TextButton(
               onPressed: _isSaving ? null : _save,
               child: _isSaving
                   ? SizedBox(
-                      width: dp(context, 18),
-                      height: dp(context, 18),
+                      width: 18,
+                      height: 18,
                       child: const CircularProgressIndicator(
                           strokeWidth: 2, color: AppColors.primary),
                     )

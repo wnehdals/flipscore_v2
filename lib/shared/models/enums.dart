@@ -2,10 +2,8 @@ enum ScoreType { pdf, image }
 
 enum TransitionMode { song, gesture, manual }
 
-enum GestureType { leftWink, rightWink, blink, smile }
+enum GestureType { leftWink, rightWink, blink }
 
-enum SubscriptionStatus { none, active, expired, cancelled }
-
-enum VerificationStatus { pending, verified, invalid }
+enum GestureSensitivity { low, medium, high }
 
 enum SocialProvider { kakao }

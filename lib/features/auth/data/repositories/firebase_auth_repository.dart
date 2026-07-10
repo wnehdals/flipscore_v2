@@ -126,10 +126,8 @@ class FirebaseAuthRepository implements AuthRepository {
 
   Future<void> _ensureUserDoc(AppUser user) async {
     final now = FieldValue.serverTimestamp();
-    final batch = _firestore.batch();
-
     final userRef = _firestore.collection('users').doc(user.docId);
-    batch.set(userRef, {
+    await userRef.set({
       'docId': user.docId,
       'kakaoId': user.kakaoId,
       'email': user.email,
@@ -140,30 +138,6 @@ class FirebaseAuthRepository implements AuthRepository {
       'createdAt': now,
       'updatedAt': now,
     });
-
-    batch.set(
-      userRef.collection('usageTime').doc('current'),
-      {'remainingSeconds': 600, 'dailyAdWatchCount': 0, 'lastAdResetDate': now},
-    );
-
-    batch.set(
-      userRef.collection('subscription').doc('current'),
-      {
-        'status': 'none',
-        'platform': null,
-        'productId': null,
-        'originalTransactionId': null,
-        'purchaseToken': null,
-        'startedAt': null,
-        'expiresAt': null,
-        'renewedAt': null,
-        'cancelledAt': null,
-        'autoRenewing': false,
-        'verifiedAt': null,
-      },
-    );
-
-    await batch.commit();
   }
 
   String _identifier(KakaoLoginResult result) {

@@ -126,3 +126,8 @@ firebase.json
 
 # secrets (로컬 전용 — 절대 commit 금지)
 secrets.json
+
+# 코드 생성기 산출물 (riverpod_generator, freezed, json_serializable)
+# `dart run build_runner build --delete-conflicting-outputs`로 재생성
+*.g.dart
+*.freezed.dart

@@ -26,7 +26,7 @@ final localScoreViewerRepositoryProvider =
 // ignore: unused_element
 typedef LocalScoreViewerRepositoryRef = ProviderRef<LocalScoreViewerRepository>;
 String _$createFlowNotifierHash() =>
-    r'6d7d94583bd5ab18d5efedcd8ed9bf87f563fe8c';
+    r'caa1a0225a5d37011fcd1262a2060f8ce43ba6aa';
 
 /// See also [CreateFlowNotifier].
 @ProviderFor(CreateFlowNotifier)

@@ -7,7 +7,6 @@ import '../models/score_viewer_timeline.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/utils/app_logger.dart';
-import '../../core/utils/responsive.dart';
 
 /// 타임라인 편집에 필요한 단일 페이지 정보.
 /// image: localPath 각각 별도 파일
@@ -161,7 +160,7 @@ class _TimelineEditorBodyState extends State<TimelineEditorBody> {
       isScrollControlled: true,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(
-          top: Radius.circular(Responsive.getDp(context, 20)),
+          top: Radius.circular(20),
         ),
       ),
       builder: (_) => _TimelineSheet(
@@ -174,7 +173,6 @@ class _TimelineEditorBodyState extends State<TimelineEditorBody> {
 
   @override
   Widget build(BuildContext context) {
-    final dp = Responsive.getDp;
     final count = _totalPages;
 
     return Column(
@@ -182,7 +180,7 @@ class _TimelineEditorBodyState extends State<TimelineEditorBody> {
         // 페이지 카운터
         if (count > 0)
           Padding(
-            padding: EdgeInsets.only(top: dp(context, 12)),
+            padding: EdgeInsets.only(top: 12),
             child: Text(
               '${_currentPage + 1} / $count',
               style: AppTextStyles.bodyMedium
@@ -191,7 +189,7 @@ class _TimelineEditorBodyState extends State<TimelineEditorBody> {
           )
         else if (_isPdf)
           Padding(
-            padding: EdgeInsets.only(top: dp(context, 12)),
+            padding: EdgeInsets.only(top: 12),
             child: Text(
               'PDF 불러오는 중...',
               style: AppTextStyles.body.copyWith(color: AppColors.textTertiary),
@@ -210,7 +208,7 @@ class _TimelineEditorBodyState extends State<TimelineEditorBody> {
                               .copyWith(color: AppColors.textTertiary)),
                 )
               : Padding(
-                  padding: EdgeInsets.all(dp(context, 16)),
+                  padding: EdgeInsets.all(16),
                   child: PageView.builder(
                     controller: _pageController,
                     itemCount: count,
@@ -219,7 +217,7 @@ class _TimelineEditorBodyState extends State<TimelineEditorBody> {
                       decoration: BoxDecoration(
                         color: AppColors.surface,
                         borderRadius:
-                            BorderRadius.circular(dp(context, 12)),
+                            BorderRadius.circular(12),
                         border: Border.all(color: AppColors.border),
                       ),
                       clipBehavior: Clip.antiAlias,
@@ -261,7 +259,7 @@ class _TimelineEditorBodyState extends State<TimelineEditorBody> {
         // 액션 버튼
         Padding(
           padding: EdgeInsets.fromLTRB(
-              dp(context, 20), dp(context, 4), dp(context, 20), dp(context, 20)),
+              20, 4, 20, 20),
           child: StreamBuilder<PlayerState>(
             stream: _player.playerStateStream,
             builder: (_, snap) {
@@ -275,7 +273,7 @@ class _TimelineEditorBodyState extends State<TimelineEditorBody> {
                       onTap: _showSheet,
                     ),
                   ),
-                  SizedBox(width: dp(context, 10)),
+                  SizedBox(width: 10),
                   Expanded(
                     child: _Btn(
                       icon: playing
@@ -287,7 +285,7 @@ class _TimelineEditorBodyState extends State<TimelineEditorBody> {
                           playing ? _player.pause() : _player.play(),
                     ),
                   ),
-                  SizedBox(width: dp(context, 10)),
+                  SizedBox(width: 10),
                   Expanded(
                     child: _Btn(
                       icon: Icons.flag_rounded,
@@ -314,7 +312,6 @@ class _ProgressBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dp = Responsive.getDp;
     return StreamBuilder<Duration?>(
       stream: player.durationStream,
       builder: (_, dSnap) {
@@ -328,7 +325,7 @@ class _ProgressBar extends StatelessWidget {
                 ? Duration.zero
                 : (pos > total ? total : pos);
             return Padding(
-              padding: EdgeInsets.symmetric(horizontal: dp(context, 20)),
+              padding: EdgeInsets.symmetric(horizontal: 20),
               child: Column(
                 children: [
                   Row(
@@ -344,11 +341,11 @@ class _ProgressBar extends StatelessWidget {
                   ),
                   SliderTheme(
                     data: SliderTheme.of(context).copyWith(
-                      trackHeight: dp(context, 3),
+                      trackHeight: 3,
                       thumbShape: RoundSliderThumbShape(
-                          enabledThumbRadius: dp(context, 6)),
+                          enabledThumbRadius: 6),
                       overlayShape: RoundSliderOverlayShape(
-                          overlayRadius: dp(context, 12)),
+                          overlayRadius: 12),
                     ),
                     child: Slider(
                       value: clamped.inMilliseconds.toDouble(),
@@ -386,10 +383,9 @@ class _TimelineSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dp = Responsive.getDp;
     return Padding(
       padding: EdgeInsets.fromLTRB(
-          dp(context, 20), dp(context, 20), dp(context, 20), dp(context, 28)),
+          20, 20, 20, 28),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -403,11 +399,11 @@ class _TimelineSheet extends StatelessWidget {
                       .copyWith(color: AppColors.primary)),
             ],
           ),
-          SizedBox(height: dp(context, 16)),
+          SizedBox(height: 16),
           if (entries.isEmpty)
             Center(
               child: Padding(
-                padding: EdgeInsets.symmetric(vertical: dp(context, 24)),
+                padding: EdgeInsets.symmetric(vertical: 24),
                 child: Text('추가된 타임라인이 없습니다',
                     style: AppTextStyles.body
                         .copyWith(color: AppColors.textTertiary)),
@@ -418,30 +414,30 @@ class _TimelineSheet extends StatelessWidget {
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: entries.length,
-              separatorBuilder: (_, _) => SizedBox(height: dp(context, 8)),
+              separatorBuilder: (_, _) => SizedBox(height: 8),
               itemBuilder: (_, i) {
                 final e = entries[i];
                 return Container(
                   padding: EdgeInsets.symmetric(
-                      horizontal: dp(context, 14),
-                      vertical: dp(context, 10)),
+                      horizontal: 14,
+                      vertical: 10),
                   decoration: BoxDecoration(
                     color: AppColors.background,
-                    borderRadius: BorderRadius.circular(dp(context, 10)),
+                    borderRadius: BorderRadius.circular(10),
                     border: Border.all(color: AppColors.border),
                   ),
                   child: Row(
                     children: [
                       Icon(Icons.flag_rounded,
-                          size: dp(context, 16), color: AppColors.primary),
-                      SizedBox(width: dp(context, 8)),
+                          size: 16, color: AppColors.primary),
+                      SizedBox(width: 8),
                       Text('페이지 ${e.pageIndex + 1}',
                           style: AppTextStyles.bodyMedium),
                       const Spacer(),
                       Text(fmt(Duration(milliseconds: e.timestampMs)),
                           style: AppTextStyles.playerTime
                               .copyWith(color: AppColors.textSecondary)),
-                      SizedBox(width: dp(context, 8)),
+                      SizedBox(width: 8),
                       IconButton(
                         icon: const Icon(Icons.close,
                             size: 18, color: AppColors.error),
@@ -476,7 +472,6 @@ class _Btn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dp = Responsive.getDp;
     final disabled = onTap == null;
     return OutlinedButton(
       onPressed: onTap,
@@ -489,16 +484,16 @@ class _Btn extends StatelessWidget {
             color: isPrimary
                 ? (disabled ? AppColors.border : AppColors.primary)
                 : AppColors.border),
-        padding: EdgeInsets.symmetric(vertical: dp(context, 14)),
+        padding: EdgeInsets.symmetric(vertical: 14),
         shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(dp(context, 10))),
+            borderRadius: BorderRadius.circular(10)),
         disabledForegroundColor: AppColors.textTertiary,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: dp(context, 20)),
-          SizedBox(height: dp(context, 4)),
+          Icon(icon, size: 20),
+          SizedBox(height: 4),
           Text(
             label,
             style: AppTextStyles.label.copyWith(

@@ -3,8 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../features/auth/presentation/providers/auth_provider.dart';
+import '../features/auth/presentation/providers/permission_notice_provider.dart';
 import '../features/auth/presentation/screens/login_screen.dart';
 import '../features/auth/presentation/screens/onboarding_screen.dart';
+import '../features/auth/presentation/screens/permission_notice_screen.dart';
 import '../features/auth/presentation/screens/privacy_policy_screen.dart';
 import '../features/auth/presentation/screens/terms_screen.dart';
 import '../features/create/presentation/screens/create_gesture_screen.dart';
@@ -12,9 +14,10 @@ import '../features/create/presentation/screens/create_mode_screen.dart';
 import '../features/create/presentation/screens/create_scores_screen.dart';
 import '../features/create/presentation/screens/create_song_screen.dart';
 import '../features/create/presentation/screens/create_timeline_screen.dart';
+import '../features/force_update/presentation/providers/force_update_provider.dart';
+import '../features/force_update/presentation/screens/force_update_screen.dart';
 import '../features/home/presentation/screens/home_screen.dart';
 import '../features/settings/presentation/screens/settings_screen.dart';
-import '../features/usage_time/presentation/screens/usage_time_screen.dart';
 import '../features/viewer/presentation/screens/viewer_screen.dart';
 import '../features/viewer/presentation/screens/viewer_timeline_screen.dart';
 
@@ -24,6 +27,12 @@ final routerProvider = Provider<GoRouter>((ref) {
   ref.listen(authStateProvider, (prev, next) {
     notifier.notifyListeners();
   });
+  ref.listen(permissionNoticeSeenProvider, (prev, next) {
+    notifier.notifyListeners();
+  });
+  ref.listen(forceUpdateCheckProvider, (prev, next) {
+    notifier.notifyListeners();
+  });
 
   ref.onDispose(() => notifier.dispose());
 
@@ -31,12 +40,34 @@ final routerProvider = Provider<GoRouter>((ref) {
     initialLocation: '/login',
     refreshListenable: notifier,
     redirect: (context, state) {
-      final authAsync = ref.read(authStateProvider);
-
-      if (authAsync.isLoading) return null;
-
-      final isLoggedIn = authAsync.valueOrNull != null;
       final loc = state.matchedLocation;
+
+      final authAsync = ref.read(authStateProvider);
+      if (authAsync.isLoading) return null;
+      final isLoggedIn = authAsync.valueOrNull != null;
+
+      final forceUpdateAsync = ref.read(forceUpdateCheckProvider);
+      if (forceUpdateAsync.isLoading) return null;
+
+      final forceUpdate = forceUpdateAsync.valueOrNull;
+      // 스토어 심사 정책상 이용약관/개인정보처리방침은 강제 업데이트 중에도 열람 가능해야 함.
+      const legalRoutes = ['/terms', '/privacy-policy'];
+      if (forceUpdate != null &&
+          forceUpdate.isRequired &&
+          !legalRoutes.contains(loc)) {
+        return loc == '/force-update' ? null : '/force-update';
+      }
+      if (loc == '/force-update') return isLoggedIn ? '/' : '/login';
+
+      final noticeAsync = ref.read(permissionNoticeSeenProvider);
+      if (noticeAsync.isLoading) return null;
+
+      final hasSeenNotice = noticeAsync.valueOrNull ?? false;
+      if (!hasSeenNotice) {
+        return loc == '/permission-notice' ? null : '/permission-notice';
+      }
+
+      if (loc == '/permission-notice') return isLoggedIn ? '/' : '/login';
 
       const publicRoutes = ['/login', '/terms', '/privacy-policy'];
       if (!isLoggedIn && !publicRoutes.contains(loc)) return '/login';
@@ -44,6 +75,14 @@ final routerProvider = Provider<GoRouter>((ref) {
       return null;
     },
     routes: [
+      GoRoute(
+        path: '/force-update',
+        builder: (context, state) => const ForceUpdateScreen(),
+      ),
+      GoRoute(
+        path: '/permission-notice',
+        builder: (context, state) => const PermissionNoticeScreen(),
+      ),
       GoRoute(
         path: '/login',
         builder: (context, state) => const LoginScreen(),
@@ -101,11 +140,6 @@ final routerProvider = Provider<GoRouter>((ref) {
         ),
       ),
 
-      // 이용시간 (Phase 5)
-      GoRoute(
-        path: '/usage-time',
-        builder: (context, state) => const UsageTimeScreen(),
-      ),
 
       // 설정 (Phase 6)
       GoRoute(

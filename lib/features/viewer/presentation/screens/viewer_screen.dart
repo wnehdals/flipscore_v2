@@ -7,15 +7,13 @@ import 'package:just_audio/just_audio.dart';
 import 'package:pdfx/pdfx.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
-import '../../../../core/utils/responsive.dart';
+import '../../../../core/utils/app_logger.dart';
 import '../../../../shared/models/enums.dart';
 import '../../../../shared/models/score_viewer.dart';
 import '../../../../shared/models/score_viewer_timeline.dart';
-import '../../../../shared/models/usage_time.dart';
-import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../create/presentation/providers/create_flow_provider.dart';
-import '../../../usage_time/presentation/providers/subscription_provider.dart';
-import '../../../usage_time/presentation/providers/usage_time_provider.dart';
+import '../../../settings/presentation/providers/gesture_sensitivity_provider.dart';
+import '../controllers/gesture_camera_controller.dart';
 
 class ViewerScreen extends ConsumerStatefulWidget {
   const ViewerScreen({super.key, required this.viewerId});
@@ -53,14 +51,10 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
   StreamSubscription<Duration>? _positionSub;
   bool _isTurningPage = false;
 
-  // 이용시간
-  String? _docId;
-  UsageTime? _usageTime;
-  int _remainingSeconds = 0;
-  bool _isSubscribed = false;
-  Timer? _usageTimer;
-  Timer? _firestoreTimer;
-  bool _timeExpired = false;
+  // 제스처 모드
+  GestureCameraController? _gestureController;
+  bool _gestureCameraFailed = false;
+  bool _gestureWarningShown = false;
 
   @override
   void initState() {
@@ -72,14 +66,12 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _usageTimer?.cancel();
-    _firestoreTimer?.cancel();
     _positionSub?.cancel();
     _audioPlayer?.dispose();
     _pageController.dispose();
     _pdfPageFutures.clear();
     _pdfDocument?.close();
-    unawaited(_saveUsageTime());
+    unawaited(_gestureController?.dispose());
     super.dispose();
   }
 
@@ -87,13 +79,15 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive) {
-      _usageTimer?.cancel();
-      _firestoreTimer?.cancel();
       _audioPlayer?.pause();
-      unawaited(_saveUsageTime());
+      // inactive는 통화/제어센터 등으로 순간 발생할 수 있어 카메라는
+      // 실제 백그라운드 전환(paused)일 때만 정지한다.
+      if (state == AppLifecycleState.paused) {
+        unawaited(_gestureController?.stop());
+      }
     } else if (state == AppLifecycleState.resumed) {
-      if (!_isSubscribed && _remainingSeconds > 0 && !_timeExpired) {
-        _startUsageTimer();
+      if (_viewer?.transitionMode == TransitionMode.gesture) {
+        unawaited(_startGestureDetection());
       }
     }
   }
@@ -133,8 +127,10 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
       _setupAutoPageTurn();
     }
 
-    // 이용시간 초기화
-    await _initUsageTime();
+    // 제스처 모드 초기화 (카메라 준비는 화면 로딩을 막지 않도록 병행 실행)
+    if (_viewer!.transitionMode == TransitionMode.gesture) {
+      unawaited(_startGestureDetection());
+    }
 
     if (mounted) setState(() => _loading = false);
   }
@@ -170,71 +166,6 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
   Future<PdfPageImage?> _pdfFuture(int n) =>
       _pdfPageFutures.putIfAbsent(n, () => _renderPdfPage(n));
 
-  Future<void> _initUsageTime() async {
-    final authAsync = ref.read(authStateProvider);
-    _docId = authAsync.valueOrNull?.docId;
-
-    final sub = ref.read(currentSubscriptionProvider).valueOrNull;
-    _isSubscribed = sub?.isActive ?? false;
-
-    if (_docId != null) {
-      final repo = ref.read(usageTimeRepositoryProvider);
-      _usageTime = await repo.getUsageTime(_docId!);
-      _remainingSeconds = _usageTime?.remainingSeconds ?? 0;
-    }
-
-    if (_isSubscribed) return;
-
-    if (_remainingSeconds <= 0) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _showNoTimeDialog();
-      });
-    } else {
-      _startUsageTimer();
-    }
-  }
-
-  void _startUsageTimer() {
-    _usageTimer?.cancel();
-    _usageTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (!mounted) {
-        timer.cancel();
-        return;
-      }
-      setState(() {
-        _remainingSeconds = (_remainingSeconds - 1).clamp(0, 999999);
-      });
-      if (_remainingSeconds <= 0) {
-        timer.cancel();
-        _timeExpired = true;
-        _audioPlayer?.pause();
-        unawaited(_saveUsageTime());
-        _showNoTimeDialog();
-      }
-    });
-
-    // 30초마다 Firestore 저장
-    _firestoreTimer?.cancel();
-    _firestoreTimer = Timer.periodic(const Duration(seconds: 30), (_) {
-      unawaited(_saveUsageTime());
-    });
-  }
-
-  Future<void> _saveUsageTime() async {
-    final time = _usageTime;
-    final docId = _docId;
-    if (time == null || docId == null || _isSubscribed) return;
-    try {
-      final repo = ref.read(usageTimeRepositoryProvider);
-      final updated = time.copyWith(
-        remainingSeconds: _remainingSeconds,
-        updatedAt: DateTime.now(),
-      );
-      await repo.updateUsageTime(docId, updated);
-      _usageTime = updated;
-    } catch (_) {}
-  }
-
   void _setupAutoPageTurn() {
     _positionSub = _audioPlayer?.positionStream.listen((position) {
       if (_timeline == null || _isTurningPage) return;
@@ -255,41 +186,55 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
     });
   }
 
-  void _showNoTimeDialog() {
-    if (!mounted) return;
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius:
-              BorderRadius.circular(Responsive.getDp(context, 16)),
-        ),
-        title: Text('이용시간 종료', style: AppTextStyles.subtitle),
-        content: Text(
-          '이용시간이 모두 소진되었습니다.\n광고 시청 또는 구독으로 이용시간을 획득해주세요.',
-          style: AppTextStyles.body
-              .copyWith(color: AppColors.textSecondary),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              context.go('/usage-time');
-            },
-            child: const Text('이용시간 획득'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              context.go('/');
-            },
-            child: Text('홈으로',
-                style: TextStyle(color: AppColors.textSecondary)),
-          ),
-        ],
-      ),
+  Future<void> _startGestureDetection() async {
+    final sensitivity = ref
+            .read(gestureSensitivityControllerProvider)
+            .valueOrNull ??
+        GestureSensitivity.medium;
+    appLogger.i('[ViewerScreen] 제스처 감지 시작 요청 (sensitivity=${sensitivity.name})');
+    final controller = _gestureController ??= GestureCameraController(
+      onGesture: _onGestureDetected,
+      sensitivity: sensitivity,
     );
+    final started = await controller.start();
+    if (!mounted) return;
+    setState(() => _gestureCameraFailed = !started);
+    if (!started) {
+      appLogger.w('[ViewerScreen] 제스처 카메라 시작 실패');
+      if (!_gestureWarningShown) {
+        _gestureWarningShown = true;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('카메라를 사용할 수 없어 제스처 인식이 꺼져 있습니다. 카메라 권한을 확인해주세요.'),
+          ),
+        );
+      }
+    }
+  }
+
+  void _onGestureDetected(GestureType gesture) {
+    if (!mounted || _isTurningPage) return;
+    final expected = _viewer?.gestureType;
+    if (expected == null || gesture != expected) {
+      appLogger.d(
+        '[ViewerScreen] 제스처($gesture) 감지됐지만 설정된 제스처($expected)와 달라 무시',
+      );
+      return;
+    }
+    if (_currentPage >= _pageCount - 1) {
+      appLogger.i('[ViewerScreen] 마지막 페이지라 제스처($gesture) 무시');
+      return;
+    }
+    appLogger.i(
+      '[ViewerScreen] 제스처($gesture)로 페이지 전환: $_currentPage -> ${_currentPage + 1}',
+    );
+    _isTurningPage = true;
+    _pageController
+        .nextPage(
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+        )
+        .then((_) => _isTurningPage = false);
   }
 
   String _formatDuration(Duration d) {
@@ -298,16 +243,8 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
     return '$m:$s';
   }
 
-  String _formatSeconds(int sec) {
-    final m = (sec ~/ 60).toString().padLeft(2, '0');
-    final s = (sec % 60).toString().padLeft(2, '0');
-    return '$m:$s';
-  }
-
   @override
   Widget build(BuildContext context) {
-    final dp = Responsive.getDp;
-
     if (_loading) {
       return const Scaffold(
         backgroundColor: Colors.black,
@@ -326,7 +263,7 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
               Text('악보뷰어를 찾을 수 없습니다',
                   style:
                       AppTextStyles.body.copyWith(color: Colors.white)),
-              SizedBox(height: dp(context, 16)),
+              const SizedBox(height: 16),
               TextButton(
                 onPressed: () => context.go('/'),
                 child: const Text('홈으로',
@@ -341,41 +278,36 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
     final viewer = _viewer!;
     final isSongMode = viewer.transitionMode == TransitionMode.song;
     final isGestureMode = viewer.transitionMode == TransitionMode.gesture;
-    final show5MinWarning = !_isSubscribed &&
-        _remainingSeconds > 0 &&
-        _remainingSeconds <= 300;
 
     return Scaffold(
       backgroundColor: Colors.black,
-      body: Stack(
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // 악보 PageView (전체 화면)
-          PageView.builder(
-            controller: _pageController,
-            itemCount: _pageCount,
-            onPageChanged: (i) => setState(() => _currentPage = i),
-            itemBuilder: (context, i) => _isPdf
-                ? _PdfPageView(future: _pdfFuture(i + 1))
-                : _ScorePageWidget(page: viewer.pages[i]),
+          // 상단 바 (고정 영역, 악보와 겹치지 않음)
+          _buildTopBar(context, viewer, isSongMode),
+
+          // 악보 PageView (남은 영역 전체)
+          Expanded(
+            child: Stack(
+              children: [
+                PageView.builder(
+                  controller: _pageController,
+                  itemCount: _pageCount,
+                  onPageChanged: (i) => setState(() => _currentPage = i),
+                  itemBuilder: (context, i) => _isPdf
+                      ? _PdfPageView(future: _pdfFuture(i + 1))
+                      : _ScorePageWidget(page: viewer.pages[i]),
+                ),
+
+                // 제스처 모드 안내 배지 (악보 영역 내부에만 표시)
+                if (isGestureMode) _buildGestureBadge(context, viewer),
+              ],
+            ),
           ),
 
-          // 상단 오버레이
-          _buildTopBar(context, viewer, isSongMode, dp),
-
-          // 5분 이하 카운트다운 오버레이
-          if (show5MinWarning) _buildCountdownOverlay(context, dp),
-
-          // 제스처 모드 안내 배지
-          if (isGestureMode) _buildGestureBadge(context, viewer, dp),
-
-          // 하단 플레이어 바 (노래 모드)
-          if (isSongMode)
-            Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
-              child: _buildPlayerBar(context, viewer, dp),
-            ),
+          // 하단 플레이어 바 (노래 모드, 고정 영역)
+          if (isSongMode) _buildPlayerBar(context, viewer),
         ],
       ),
     );
@@ -385,28 +317,23 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
     BuildContext context,
     ScoreViewer viewer,
     bool isSongMode,
-    double Function(BuildContext, double) dp,
   ) {
-    return Positioned(
-      top: 0,
-      left: 0,
-      right: 0,
+    return ColoredBox(
+      color: Colors.black,
       child: SafeArea(
+        bottom: false,
         child: Padding(
-          padding: EdgeInsets.symmetric(
-              horizontal: dp(context, 12), vertical: dp(context, 8)),
+          padding: const EdgeInsets.symmetric(
+              horizontal: 12, vertical: 8),
           child: Row(
             children: [
               // 닫기 버튼
               IconButton(
-                onPressed: () {
-                  unawaited(_saveUsageTime());
-                  context.go('/');
-                },
+                onPressed: () => context.go('/'),
                 icon: const Icon(Icons.close, color: Colors.white),
                 style: IconButton.styleFrom(
                   backgroundColor: Colors.black45,
-                  padding: EdgeInsets.all(dp(context, 8)),
+                  padding: const EdgeInsets.all(8),
                 ),
               ),
 
@@ -422,85 +349,7 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
                 ),
               ),
 
-              // 이용시간 / 구독 표시
-              _buildUsageTimeBadge(context, dp),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildUsageTimeBadge(
-      BuildContext context, double Function(BuildContext, double) dp) {
-    if (_isSubscribed) {
-      return Container(
-        padding: EdgeInsets.symmetric(
-            horizontal: dp(context, 10), vertical: dp(context, 5)),
-        decoration: BoxDecoration(
-          color: AppColors.primary.withValues(alpha: 0.85),
-          borderRadius: BorderRadius.circular(dp(context, 20)),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.all_inclusive,
-                size: dp(context, 13), color: Colors.white),
-            SizedBox(width: dp(context, 4)),
-            Text('구독중',
-                style: AppTextStyles.micro.copyWith(color: Colors.white)),
-          ],
-        ),
-      );
-    }
-
-    final isLow = _remainingSeconds <= 300;
-    return Container(
-      padding: EdgeInsets.symmetric(
-          horizontal: dp(context, 10), vertical: dp(context, 5)),
-      decoration: BoxDecoration(
-        color: isLow
-            ? Colors.red.withValues(alpha: 0.85)
-            : Colors.black54,
-        borderRadius: BorderRadius.circular(dp(context, 20)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.timer_outlined,
-              size: dp(context, 13), color: Colors.white),
-          SizedBox(width: dp(context, 4)),
-          Text(_formatSeconds(_remainingSeconds),
-              style: AppTextStyles.micro.copyWith(color: Colors.white)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCountdownOverlay(
-      BuildContext context, double Function(BuildContext, double) dp) {
-    return Positioned(
-      top: dp(context, 80),
-      left: 0,
-      right: 0,
-      child: Center(
-        child: Container(
-          padding: EdgeInsets.symmetric(
-              horizontal: dp(context, 16), vertical: dp(context, 10)),
-          decoration: BoxDecoration(
-            color: Colors.red.withValues(alpha: 0.85),
-            borderRadius: BorderRadius.circular(dp(context, 12)),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.warning_amber_rounded,
-                  color: Colors.white, size: dp(context, 16)),
-              SizedBox(width: dp(context, 6)),
-              Text(
-                '이용시간 ${_formatSeconds(_remainingSeconds)} 남음',
-                style: AppTextStyles.label.copyWith(color: Colors.white),
-              ),
+              const SizedBox(width: 40),
             ],
           ),
         ),
@@ -511,35 +360,36 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
   Widget _buildGestureBadge(
     BuildContext context,
     ScoreViewer viewer,
-    double Function(BuildContext, double) dp,
   ) {
     final gestureLabel = switch (viewer.gestureType) {
       GestureType.rightWink => '오른쪽 눈 윙크',
       GestureType.leftWink => '왼쪽 눈 윙크',
       GestureType.blink => '눈 두 번 깜빡임',
-      GestureType.smile => '미소',
       null => '제스처',
     };
 
+    final label = _gestureCameraFailed ? '카메라 꺼짐' : '$gestureLabel → 다음 페이지';
+    final icon =
+        _gestureCameraFailed ? Icons.videocam_off_outlined : Icons.remove_red_eye_outlined;
+
     return Positioned(
-      bottom: dp(context, 24),
+      bottom: 24,
       left: 0,
       right: 0,
       child: Center(
         child: Container(
           padding: EdgeInsets.symmetric(
-              horizontal: dp(context, 14), vertical: dp(context, 8)),
+              horizontal: 14, vertical: 8),
           decoration: BoxDecoration(
             color: Colors.black54,
-            borderRadius: BorderRadius.circular(dp(context, 24)),
+            borderRadius: BorderRadius.circular(24),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.remove_red_eye_outlined,
-                  color: Colors.white70, size: dp(context, 14)),
-              SizedBox(width: dp(context, 6)),
-              Text('$gestureLabel → 다음 페이지',
+              Icon(icon, color: Colors.white70, size: 14),
+              SizedBox(width: 6),
+              Text(label,
                   style: AppTextStyles.caption
                       .copyWith(color: Colors.white70)),
             ],
@@ -552,15 +402,13 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
   Widget _buildPlayerBar(
     BuildContext context,
     ScoreViewer viewer,
-    double Function(BuildContext, double) dp,
   ) {
     final player = _audioPlayer;
     if (player == null) return const SizedBox.shrink();
 
     return Container(
       color: AppColors.playerBg,
-      padding: EdgeInsets.fromLTRB(
-          dp(context, 16), dp(context, 10), dp(context, 16), dp(context, 16)),
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
       child: SafeArea(
         top: false,
         child: Column(
@@ -597,15 +445,15 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
                         ),
                         SliderTheme(
                           data: SliderTheme.of(context).copyWith(
-                            trackHeight: dp(context, 3),
+                            trackHeight: 3,
                             activeTrackColor: AppColors.playerAccent,
                             inactiveTrackColor:
                                 Colors.white.withValues(alpha: 0.2),
                             thumbColor: AppColors.playerAccent,
                             thumbShape: RoundSliderThumbShape(
-                                enabledThumbRadius: dp(context, 5)),
+                                enabledThumbRadius: 5),
                             overlayShape: RoundSliderOverlayShape(
-                                overlayRadius: dp(context, 10)),
+                                overlayRadius: 10),
                           ),
                           child: Slider(
                             value: clamped.inMilliseconds.toDouble(),
@@ -625,7 +473,7 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
               },
             ),
 
-            SizedBox(height: dp(context, 4)),
+            SizedBox(height: 4),
 
             // 컨트롤 버튼
             StreamBuilder<PlayerState>(
@@ -648,22 +496,22 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
                     IconButton(
                       onPressed: () => player.seek(Duration.zero),
                       icon: Icon(Icons.skip_previous_rounded,
-                          color: AppColors.playerText, size: dp(context, 22)),
+                          color: AppColors.playerText, size: 22),
                       padding: EdgeInsets.zero,
                       constraints: BoxConstraints(
-                          minWidth: dp(context, 40),
-                          minHeight: dp(context, 40)),
+                          minWidth: 40,
+                          minHeight: 40),
                     ),
 
-                    SizedBox(width: dp(context, 4)),
+                    SizedBox(width: 4),
 
                     // 재생/정지
                     GestureDetector(
                       onTap: () =>
                           playing ? player.pause() : player.play(),
                       child: Container(
-                        width: dp(context, 44),
-                        height: dp(context, 44),
+                        width: 44,
+                        height: 44,
                         decoration: const BoxDecoration(
                           color: AppColors.playerAccent,
                           shape: BoxShape.circle,
@@ -673,12 +521,12 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
                               ? Icons.pause_rounded
                               : Icons.play_arrow_rounded,
                           color: Colors.white,
-                          size: dp(context, 24),
+                          size: 24,
                         ),
                       ),
                     ),
 
-                    SizedBox(width: dp(context, 4)),
+                    SizedBox(width: 4),
 
                     // 타임라인 재설정
                     IconButton(
@@ -688,11 +536,11 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
                             '/viewer/${widget.viewerId}/timeline');
                       },
                       icon: Icon(Icons.tune_rounded,
-                          color: AppColors.playerText, size: dp(context, 22)),
+                          color: AppColors.playerText, size: 22),
                       padding: EdgeInsets.zero,
                       constraints: BoxConstraints(
-                          minWidth: dp(context, 40),
-                          minHeight: dp(context, 40)),
+                          minWidth: 40,
+                          minHeight: 40),
                       tooltip: '타임라인',
                     ),
                   ],

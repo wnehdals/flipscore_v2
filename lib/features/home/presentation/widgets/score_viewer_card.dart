@@ -1,4 +1,3 @@
-import 'package:flipscore/core/utils/responsive.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -26,7 +25,7 @@ class ScoreViewerCard extends StatelessWidget {
       child: Container(
         decoration: BoxDecoration(
           color: AppColors.surface,
-          borderRadius: BorderRadius.circular(Responsive.getDp(context, 16)),
+          borderRadius: BorderRadius.circular(16),
           border: Border.all(color: AppColors.border),
         ),
         child: Column(
@@ -37,25 +36,25 @@ class ScoreViewerCard extends StatelessWidget {
               child: Container(
                 decoration: BoxDecoration(
                   color: AppColors.badgeGesture,
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(Responsive.getDp(context, 15))),
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(15)),
                 ),
                 child: Stack(
                   children: [
                     Center(
                       child: SvgPicture.asset(
                         'assets/images/present_logo.svg',
-                        width: Responsive.getDp(context, 48),
-                        height: Responsive.getDp(context, 48)
+                        width: 48,
+                        height: 48
                       ),
                     ),
                     // 페이지 수 배지
                     Positioned(
-                      bottom: Responsive.getDp(context, 10),
-                      right: Responsive.getDp(context, 10),
+                      bottom: 10,
+                      right: 10,
                       child: Container(
                         padding: EdgeInsets.symmetric(
-                          horizontal: Responsive.getDp(context, 8),
-                          vertical: Responsive.getDp(context, 4),
+                          horizontal: 8,
+                          vertical: 4,
                         ),
                         decoration: BoxDecoration(
                           color: AppColors.dark.withValues(alpha: 0.65),
@@ -75,7 +74,7 @@ class ScoreViewerCard extends StatelessWidget {
             ),
             // 메타 정보
             Padding(
-              padding: EdgeInsets.fromLTRB(Responsive.getDp(context, 12), Responsive.getDp(context, 10), Responsive.getDp(context, 12), Responsive.getDp(context, 12)),
+              padding: EdgeInsets.fromLTRB(12, 10, 12, 12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [

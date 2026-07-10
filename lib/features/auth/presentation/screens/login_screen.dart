@@ -7,6 +7,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../domain/models/app_user.dart';
 import '../providers/auth_provider.dart';
+import '../../../../shared/widgets/vertical_scroll_view.dart';
 
 class LoginScreen extends ConsumerWidget {
   const LoginScreen({super.key});
@@ -33,13 +34,12 @@ class LoginScreen extends ConsumerWidget {
           width: double.infinity,
           height: double.infinity,
           color: AppColors.surface,
-          child: SingleChildScrollView(
+          child: VerticalScrollView(
             padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 36),
-            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                const SizedBox(height: 48),
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              const SizedBox(height: 48),
+                const Text('login screen'),
                 SvgPicture.asset(
                   'assets/images/flip_score_logo.svg',
                   width: 76,
@@ -60,11 +60,6 @@ class LoginScreen extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(height: 64),
-                if (authAsync.isLoading)
-                  const Center(
-                    child: CircularProgressIndicator(color: AppColors.primary),
-                  )
-                else
                   _KakaoLoginButton(
                     onTap: () =>
                         ref.read(authNotifierProvider.notifier).signInWithKakao(),
@@ -119,7 +114,6 @@ class LoginScreen extends ConsumerWidget {
                   ),
                 ),
               ],
-            ),
           ),
         ),
       ),

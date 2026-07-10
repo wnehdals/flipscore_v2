@@ -5,7 +5,6 @@ import '../../core/theme/app_text_styles.dart';
 
 enum _NavItem {
   home('/'),
-  usageTime('/usage-time'),
   settings('/settings');
 
   const _NavItem(this.path);
@@ -13,7 +12,7 @@ enum _NavItem {
 }
 
 _NavItem _selectedFromLocation(String location) {
-  // Reversed so '/usage-time' and '/settings' match before '/'
+  // Reversed so '/settings' matches before '/'
   for (final item in _NavItem.values.reversed) {
     if (location.startsWith(item.path)) return item;
   }
@@ -44,12 +43,6 @@ class AppBottomNav extends StatelessWidget {
                 label: '악보',
                 selected: selected == _NavItem.home,
                 onTap: () => context.go(_NavItem.home.path),
-              ),
-              _NavButton(
-                icon: Icons.timer_outlined,
-                label: '시간',
-                selected: selected == _NavItem.usageTime,
-                onTap: () => context.go(_NavItem.usageTime.path),
               ),
               _NavButton(
                 icon: Icons.settings_outlined,

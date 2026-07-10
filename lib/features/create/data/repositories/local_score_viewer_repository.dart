@@ -125,4 +125,11 @@ class LocalScoreViewerRepository {
     final dir = await _viewerDir(id);
     if (await dir.exists()) await dir.delete(recursive: true);
   }
+
+  /// 회원 탈퇴 시 로컬에 저장된 모든 악보뷰어 데이터를 삭제합니다.
+  Future<void> deleteAll() async {
+    final base = await getApplicationSupportDirectory();
+    final root = Directory('${base.path}/flip_score');
+    if (await root.exists()) await root.delete(recursive: true);
+  }
 }

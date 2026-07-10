@@ -286,10 +286,9 @@ class _TitleInputState extends State<_TitleInput> {
 
   @override
   Widget build(BuildContext context) {
-    final dp = Responsive.getDp;
     return Container(
       color: AppColors.surface,
-      padding: EdgeInsets.fromLTRB(dp(context, 18), dp(context, 12), dp(context, 18), dp(context, 12)),
+      padding: const EdgeInsets.fromLTRB(18, 12, 18, 12),
       child: TextField(
         controller: _controller,
         onChanged: widget.onChanged,
@@ -301,20 +300,20 @@ class _TitleInputState extends State<_TitleInput> {
           ),
           filled: true,
           fillColor: AppColors.background,
-          contentPadding: EdgeInsets.symmetric(
-            horizontal: dp(context, 16),
-            vertical: dp(context, 12),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 12,
           ),
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(dp(context, 8)),
+            borderRadius: BorderRadius.circular(8),
             borderSide: const BorderSide(color: AppColors.border),
           ),
           enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(dp(context, 8)),
+            borderRadius: BorderRadius.circular(8),
             borderSide: const BorderSide(color: AppColors.border),
           ),
           focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(dp(context, 8)),
+            borderRadius: BorderRadius.circular(8),
             borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
           ),
         ),
@@ -339,19 +338,14 @@ class _FileTypeToggle extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       color: AppColors.background,
-      padding: EdgeInsets.fromLTRB(
-        Responsive.getDp(context, 18),
-        Responsive.getDp(context, 10),
-        Responsive.getDp(context, 18),
-        Responsive.getDp(context, 10),
-      ),
+      padding: const EdgeInsets.fromLTRB(18, 10, 18, 10),
       child: Row(
         children: [
           Container(
-            padding: EdgeInsets.all(Responsive.getDp(context, 4)),
+            padding: const EdgeInsets.all(4),
             decoration: BoxDecoration(
               color: const Color(0xFFEAEBEE),
-              borderRadius: BorderRadius.circular(Responsive.getDp(context, 10)),
+              borderRadius: BorderRadius.circular(10),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -404,15 +398,15 @@ class _TypeTab extends StatelessWidget {
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
-        padding: EdgeInsets.symmetric(horizontal: Responsive.getDp(context, 14), vertical: Responsive.getDp(context, 6)),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
         decoration: BoxDecoration(
           color: isSelected ? AppColors.surface : Colors.transparent,
-          borderRadius: BorderRadius.circular(Responsive.getDp(context, 4)),
+          borderRadius: BorderRadius.circular(4),
           boxShadow: isSelected
               ? [
                   BoxShadow(
                     color: Colors.black.withValues(alpha: 0.06),
-                    blurRadius: Responsive.getDp(context, 4),
+                    blurRadius: 4,
                     offset: const Offset(0, 1),
                   ),
                 ]
@@ -423,12 +417,12 @@ class _TypeTab extends StatelessWidget {
           children: [
             Icon(
               icon,
-              size: Responsive.getDp(context, 12),
+              size: 12,
               color: isSelected
                   ? const Color(0xFF5D5D5F)
                   : const Color(0xFF9DA1A6),
             ),
-            SizedBox(width: Responsive.getDp(context, 6)),
+            const SizedBox(width: 6),
             Text(
               label,
               style: AppTextStyles.bodySmall.copyWith(

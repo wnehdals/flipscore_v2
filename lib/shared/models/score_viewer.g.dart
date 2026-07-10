@@ -47,7 +47,6 @@ const _$GestureTypeEnumMap = {
   GestureType.leftWink: 'leftWink',
   GestureType.rightWink: 'rightWink',
   GestureType.blink: 'blink',
-  GestureType.smile: 'smile',
 };
 
 _$ScorePageImpl _$$ScorePageImplFromJson(Map<String, dynamic> json) =>

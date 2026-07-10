@@ -8,7 +8,7 @@
 - Firebase 프로젝트: `flipmusicscore`
 - 패키지명: `com.example.flip_score2` (배포 전 변경 필요)
 - Flutter SDK: `^3.12.2` / Dart: `^3.12.2`
-- 지원 플랫폼: **Android / iOS** (태블릿 우선, 가로 모드 기본)
+- 지원 플랫폼: **Android / iOS** (태블릿 우선, 세로 모드 기본)
 
 ---
 
@@ -66,12 +66,12 @@
 
 ### 레이아웃
 
-- **기본 방향**: 가로(Landscape) 고정
-- **타깃 해상도**: 1184 × 824 pt (iPad Air 11")
-- 사이드 네비게이션 바 너비: 78px
+- **기본 방향**: 세로(Portrait) — OS 레벨 회전 잠금은 없음 (세로/가로 모두 지원되나 UI는 세로 기준으로 설계)
+- **반응형 기준**: 폰/태블릿 공용, 태블릿 브레이크포인트 600dp (`Responsive.isTablet`)
+- 하단 네비게이션 바 높이: 60px (`AppBottomNav`)
 - 카드 반경: 16px / 컨테이너 반경: 26–44px
 - 여백 기본단위: 8px
-- width, height, BorderRadius.circular, EdgeInsets.symmetric 값 입력 시 Responsive.getDp(context, value) 반드시 사용하기
+- width, height, BorderRadius.circular, EdgeInsets.symmetric 값은 순수 숫자 리터럴을 그대로 사용 (`Responsive.getDp` 래핑 금지, `Responsive.isTablet`만 브레이크포인트 분기에 사용)
 
 ---
 
@@ -88,8 +88,6 @@
 | S-06 | 악보뷰어 생성 — 제스처 선택 | `/create/gesture` |
 | S-07 | 타임라인 설정 | `/viewer/:id/timeline` |
 | S-08 | 악보뷰어 실행 | `/viewer/:id` |
-| S-09 | 이용시간 | `/usage-time` |
-| S-10 | 구독 결제 | `/subscription` |
 | S-11 | 설정 | `/settings` |
 
 ---
@@ -112,7 +110,6 @@ lib/
 │   ├── home/                 # S-02 홈
 │   ├── create/               # S-03~S-06 악보뷰어 생성 플로우
 │   ├── viewer/               # S-07 타임라인, S-08 악보뷰어 실행
-│   ├── usage_time/           # S-09 이용시간, S-10 구독
 │   └── settings/             # S-11 설정
 └── shared/
     ├── widgets/              # 공통 위젯
@@ -125,12 +122,12 @@ lib/
 
 ## 비즈니스 로직 핵심 규칙
 
-1. **이용시간**: 악보뷰어 실행 시 초 단위로 차감. 구독 중이면 차감 없음.
-2. **광고 보상**: 하루 3회 한도, 매일 자정 초기화, 완료 시에만 10분 지급.
-3. **노래 ↔ 제스처**: 동시 선택 불가 — 한쪽 선택 시 나머지 비활성.
-4. **PDF 순서**: 변경 불가 (원본 순서 고정). 사진만 드래그앤드롭 허용.
-5. **파일 저장**: 악보뷰어 저장 완료 시 앱 내부 저장소로 복사. 복사 실패 = 저장 실패.
-6. **타임라인 없이 노래 뷰어 실행 시**: 타임라인 설정 화면으로 자동 이동.
+1. **노래 ↔ 제스처**: 동시 선택 불가 — 한쪽 선택 시 나머지 비활성.
+2. **PDF 순서**: 변경 불가 (원본 순서 고정). 사진만 드래그앤드롭 허용.
+3. **파일 저장**: 악보뷰어 저장 완료 시 앱 내부 저장소로 복사. 복사 실패 = 저장 실패.
+4. **타임라인 없이 노래 뷰어 실행 시**: 타임라인 설정 화면으로 자동 이동.
+
+> 이용시간 차감, 광고 보상(하루 3회, 10분 지급), 구독 결제는 앱 출시 이후 구현 예정 — 관련 코드는 아직 없음.
 
 ---
 
@@ -151,7 +148,7 @@ lib/
 | Skill | 사용 시점 |
 |---|---|
 | `flutter-apply-architecture-best-practices` | feature 폴더 구조, Clean Architecture 적용 시 |
-| `flutter-build-responsive-layout` | iPad/Android 태블릿 가로 레이아웃 구현 시 |
+| `flutter-build-responsive-layout` | iPad/Android 태블릿 세로 레이아웃 구현 시 |
 | `flutter-fix-layout-issues` | 레이아웃 오버플로, 렌더링 오류 발생 시 |
 | `flutter-setup-declarative-routing` | go_router 기반 라우팅 세팅 시 |
 | `flutter-implement-json-serialization` | 모델 클래스에 JSON 직렬화 추가 시 |
@@ -247,4 +244,4 @@ dart run build_runner build --delete-conflicting-outputs
 - **Pretendard 폰트**: 앱 번들에 포함하거나 `google_fonts` 패키지로 대체. 라이선스: OFL(무료).
 - **인앱 결제 테스트**: 실제 결제 테스트는 Google Play 내부 테스터 / TestFlight 환경에서 수행.
 - **광고 테스트**: AdMob 테스트 광고 ID 사용. 실제 광고 ID는 Remote Config로 관리.
-- width, height, BorderRadius.circular, EdgeInsets.symmetric 값 입력 시 Responsive.getDp(context, value) 반드시 사용하기
+
