@@ -67,6 +67,7 @@ dependencies:
   google_mlkit_face_detection: ^0.13.2
   camera: ^0.11.0+2
   shared_preferences: ^2.3.5
+  flutter_launcher_icons: ^0.14.4
 
 
 dev_dependencies:
@@ -94,6 +95,7 @@ flutter:
   assets:
     - assets/images/flip_score_logo.svg
     - assets/images/present_logo.svg
+    - assets/images/flip_score_icon.png
   #   - images/a_dot_burr.jpeg
   #   - images/a_dot_ham.jpeg
 
